@@ -18,14 +18,20 @@ pragma solidity 0.8.16;
 
 import "dss-interfaces/Interfaces.sol";
 import {DssTest, GodMode} from "dss-test/DssTest.sol";
+import {stdStorage, StdStorage} from "forge-std/Test.sol";
 
 import "./test/rates.sol";
 import "./test/addresses_mainnet.sol";
+import "./test/addresses_base.sol";
 import "./test/addresses_deployers.sol";
 import "./test/addresses_wallets.sol";
 import "./test/config.sol";
 
 import {DssSpell} from "./DssSpell.sol";
+
+import {RootDomain} from "dss-test/domains/RootDomain.sol";
+import {OptimismDomain} from "dss-test/domains/OptimismDomain.sol";
+import {ArbitrumDomain} from "dss-test/domains/ArbitrumDomain.sol";
 
 struct TeleportGUID {
     bytes32 sourceDomain;
@@ -143,17 +149,57 @@ interface AuthorityLike {
     function authority() external view returns (address);
 }
 
+interface SplitterMomLike {
+    function authority() external view returns (address);
+    function stop() external;
+}
+
 // TODO: add full interfaces to dss-interfaces and remove from here
-interface FlapUniV2Abstract {
+interface FlapUniV2Like {
     function gem() external view returns (address);
-    function hop() external view returns (uint256);
     function pair() external view returns (address);
     function pip() external view returns (address);
     function want() external view returns (uint256);
 }
 
-interface FlapperMomAbstract {
-    function stop() external;
+// TODO: add full interfaces to dss-interfaces and remove from here
+interface SplitLike {
+    function burn() external view returns (uint256);
+    function farm() external view returns (address);
+    function flapper() external view returns (address);
+    function hop() external view returns (uint256);
+}
+
+interface FlapOracleLike {
+    function read() external view returns (bytes32);
+}
+
+// TODO: add full interfaces to dss-interfaces and remove from here
+interface UsdsJoinLike is DaiJoinAbstract {}
+
+interface SUsdsLike {
+    function allowance(address, address) external view returns (uint256);
+    function approve(address spender, uint256 value) external returns (bool);
+    function asset() external view returns (address);
+    function balanceOf(address) external view returns (uint256);
+    function chi() external view returns (uint192);
+    function convertToAssets(uint256 shares) external view returns (uint256);
+    function convertToShares(uint256 assets) external view returns (uint256);
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+    function drip() external returns (uint256 nChi);
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+    function rho() external view returns (uint64);
+    function ssr() external view returns (uint256);
+}
+
+interface DaiUsdsLike {
+    function daiToUsds(address usr, uint256 wad) external;
+    function usdsToDai(address usr, uint256 wad) external;
+}
+
+interface MkrSkyLike {
+    function mkrToSky(address usr, uint256 mkrAmt) external;
+    function skyToMkr(address usr, uint256 skyAmt) external;
 }
 
 interface LitePsmLike {
@@ -187,9 +233,150 @@ interface LitePsmMomLike is AuthorityLike {
     function halt(address, uint8) external;
 }
 
+interface StakingRewardsLike {
+    function stake(uint256 amount) external;
+    function notifyRewardAmount(uint256 reward) external;
+    function rewardPerToken() external view returns (uint256);
+    function rewardsDistribution() external view returns (address);
+    function rewardsDuration() external view returns (uint256);
+    function rewardsToken() external view returns (address);
+    function stakingToken() external view returns (address);
+}
+
+interface LockstakeEngineLike {
+    function addFarm(address farm) external;
+    function delFarm(address farm) external;
+    function deny(address usr) external;
+    function draw(address owner, uint256 index, address to, uint256 wad) external;
+    function farms(address farm) external view returns (uint8 farmStatus);
+    function fee() external view returns (uint256);
+    function file(bytes32 what, uint256 data) external;
+    function file(bytes32 what, address data) external;
+    function free(address owner, uint256 index, address to, uint256 wad) external returns (uint256 freed);
+    function freeNoFee(address owner, uint256 index, address to, uint256 wad) external;
+    function freeSky(address owner, uint256 index, address to, uint256 skyWad) external returns (uint256 skyFreed);
+    function getReward(address owner, uint256 index, address farm, address to) external returns (uint256 amt);
+    function hope(address owner, uint256 index, address usr) external;
+    function ilk() external view returns (bytes32);
+    function isUrnAuth(address owner, uint256 index, address usr) external view returns (bool ok);
+    function jug() external view returns (address);
+    function lock(address owner, uint256 index, uint256 wad, uint16 ref) external;
+    function lockSky(address owner, uint256 index, uint256 skyWad, uint16 ref) external;
+    function lsmkr() external view returns (address);
+    function mkr() external view returns (address);
+    function mkrSky() external view returns (address);
+    function mkrSkyRate() external view returns (uint256);
+    function multicall(bytes[] memory data) external returns (bytes[] memory results);
+    function nope(address owner, uint256 index, address usr) external;
+    function onKick(address urn, uint256 wad) external;
+    function onRemove(address urn, uint256 sold, uint256 left) external;
+    function onTake(address urn, address who, uint256 wad) external;
+    function open(uint256 index) external returns (address urn);
+    function ownerUrns(address owner, uint256 index) external view returns (address urn);
+    function ownerUrnsCount(address owner) external view returns (uint256 count);
+    function rely(address usr) external;
+    function selectFarm(address owner, uint256 index, address farm, uint16 ref) external;
+    function selectVoteDelegate(address owner, uint256 index, address voteDelegate) external;
+    function sky() external view returns (address);
+    function urnAuctions(address urn) external view returns (uint256 auctionsCount);
+    function urnCan(address urn, address usr) external view returns (uint256 allowed);
+    function urnFarms(address urn) external view returns (address farm);
+    function urnImplementation() external view returns (address);
+    function urnOwners(address urn) external view returns (address owner);
+    function urnVoteDelegates(address urn) external view returns (address voteDelegate);
+    function usds() external view returns (address);
+    function usdsJoin() external view returns (address);
+    function vat() external view returns (address);
+    function voteDelegateFactory() external view returns (address);
+    function wards(address usr) external view returns (uint256 allowed);
+    function wipe(address owner, uint256 index, uint256 wad) external;
+    function wipeAll(address owner, uint256 index) external returns (uint256 wad);
+}
+
+interface LockstakeClipperLike {
+    function vat() external view returns (address);
+    function dog() external view returns (address);
+    function spotter() external view returns (address);
+    function engine() external view returns (address);
+    function ilk() external view returns (bytes32);
+    function rely(address) external;
+    function file(bytes32, address) external;
+    function file(bytes32, uint256) external;
+    function upchost() external;
+    function sales(uint256)
+        external
+        view
+        returns (uint256 pos, uint256 tab, uint256 lot, uint256 tot, address usr, uint96 tic, uint256 top);
+    function stopped() external view returns (uint256);
+}
+
+interface VoteDelegateFactoryLike {
+    function create() external returns (address voteDelegate);
+}
+
+interface AllocatorVaultLike {
+    function buffer() external view returns (address);
+    function draw(uint256 wad) external;
+    function ilk() external view returns (bytes32);
+    function jug() external view returns (address);
+    function roles() external view returns (address);
+    function usdsJoin() external view returns (address);
+    function vat() external view returns (address);
+    function wards(address) external view returns (uint256);
+    function wipe(uint256 wad) external;
+}
+
+interface AllocatorRegistryLike {
+    function buffers(bytes32) external view returns (address);
+}
+
+interface AllocatorRolesLike {
+    function ilkAdmins(bytes32) external view returns (address);
+}
+
+interface L1TokenBridgeLike {
+    function l1ToL2Token(address) external view returns (address);
+    function isOpen() external view returns (uint256);
+    function escrow() external view returns (address);
+    function otherBridge() external view returns (address);
+    function messenger() external view returns (address);
+    function version() external view returns (string memory);
+    function getImplementation() external view returns (address);
+    function bridgeERC20To(
+        address _localToken,
+        address _remoteToken,
+        address _to,
+        uint256 _amount,
+        uint32 _minGasLimit,
+        bytes memory _extraData
+    ) external;
+}
+
+interface L2TokenBridgeLike {
+    function l1ToL2Token(address) external view returns (address);
+    function isOpen() external view returns (uint256);
+    function escrow() external view returns (address);
+    function otherBridge() external view returns (address);
+    function messenger() external view returns (address);
+    function version() external view returns (string memory);
+    function maxWithdraws(address) external view returns (uint256);
+    function getImplementation() external view returns (address);
+    function bridgeERC20To(
+        address _localToken,
+        address _remoteToken,
+        address _to,
+        uint256 _amount,
+        uint32 _minGasLimit,
+        bytes memory _extraData
+    ) external;
+}
+
 contract DssSpellTestBase is Config, DssTest {
+    using stdStorage for StdStorage;
+
     Rates         rates = new Rates();
     Addresses      addr = new Addresses();
+    BaseAddresses  base = new BaseAddresses();
     Deployers deployers = new Deployers();
     Wallets     wallets = new Wallets();
 
@@ -206,27 +393,44 @@ contract DssSpellTestBase is Config, DssTest {
     SpotAbstract                 spotter = SpotAbstract(       addr.addr("MCD_SPOT"));
     DaiAbstract                      dai = DaiAbstract(        addr.addr("MCD_DAI"));
     DaiJoinAbstract              daiJoin = DaiJoinAbstract(    addr.addr("MCD_JOIN_DAI"));
+    GemAbstract                     usds = GemAbstract(        addr.addr("USDS"));
+    SUsdsLike                      susds = SUsdsLike(          addr.addr("SUSDS"));
+    UsdsJoinLike                usdsJoin = UsdsJoinLike(       addr.addr("USDS_JOIN"));
     DSTokenAbstract                  gov = DSTokenAbstract(    addr.addr("MCD_GOV"));
+    DSTokenAbstract                  mkr = DSTokenAbstract(    addr.addr("MCD_GOV"));
+    GemAbstract                      sky = GemAbstract(        addr.addr("SKY"));
+    MkrSkyLike                    mkrSky = MkrSkyLike(         addr.addr("MKR_SKY"));
     EndAbstract                      end = EndAbstract(        addr.addr("MCD_END"));
     ESMAbstract                      esm = ESMAbstract(        addr.addr("MCD_ESM"));
     CureAbstract                    cure = CureAbstract(       addr.addr("MCD_CURE"));
     IlkRegistryAbstract              reg = IlkRegistryAbstract(addr.addr("ILK_REGISTRY"));
-    FlapUniV2Abstract               flap = FlapUniV2Abstract(  addr.addr("MCD_FLAP"));
+    SplitLike                      split = SplitLike(          addr.addr("MCD_SPLIT"));
+    FlapUniV2Like                   flap = FlapUniV2Like(      addr.addr("MCD_FLAP"));
     CropperLike                  cropper = CropperLike(        addr.addr("MCD_CROPPER"));
 
     OsmMomAbstract                osmMom = OsmMomAbstract(     addr.addr("OSM_MOM"));
     ClipperMomAbstract           clipMom = ClipperMomAbstract( addr.addr("CLIPPER_MOM"));
-    FlapperMomAbstract           flapMom = FlapperMomAbstract( addr.addr("FLAPPER_MOM"));
     AuthorityLike                 d3mMom = AuthorityLike(      addr.addr("DIRECT_MOM"));
     AuthorityLike                lineMom = AuthorityLike(      addr.addr("LINE_MOM"));
     AuthorityLike             litePsmMom = AuthorityLike(      addr.addr("LITE_PSM_MOM"));
+    SplitterMomLike          splitterMom = SplitterMomLike(    addr.addr("SPLITTER_MOM"));
     DssAutoLineAbstract         autoLine = DssAutoLineAbstract(addr.addr("MCD_IAM_AUTO_LINE"));
     LerpFactoryAbstract      lerpFactory = LerpFactoryAbstract(addr.addr("LERP_FAB"));
     VestAbstract                 vestDai = VestAbstract(       addr.addr("MCD_VEST_DAI"));
+    VestAbstract                vestUsds = VestAbstract(       addr.addr("MCD_VEST_USDS"));
     VestAbstract                 vestMkr = VestAbstract(       addr.addr("MCD_VEST_MKR_TREASURY"));
+    VestAbstract                 vestSky = VestAbstract(       addr.addr("MCD_VEST_SKY_TREASURY"));
+    VestAbstract             vestSkyMint = VestAbstract(       addr.addr("MCD_VEST_SKY"));
     RwaLiquidationLike liquidationOracle = RwaLiquidationLike( addr.addr("MIP21_LIQUIDATION_ORACLE"));
+    address          voteDelegateFactory =                     addr.addr("VOTE_DELEGATE_FACTORY");
 
     DssSpell spell;
+
+    string         config;
+    RootDomain     rootDomain;
+    OptimismDomain optimismDomain;
+    ArbitrumDomain arbitrumDomain;
+    OptimismDomain baseDomain;
 
     event Debug(uint256 index, uint256 val);
     event Debug(uint256 index, address addr);
@@ -378,7 +582,7 @@ contract DssSpellTestBase is Config, DssTest {
     }
 
     function setUp() public {
-        setValues(address(chief));
+        setValues();
         _castPreviousSpell();
 
         spellValues.deployed_spell_created = spellValues.deployed_spell != address(0)
@@ -436,7 +640,7 @@ contract DssSpellTestBase is Config, DssTest {
         DssSpell(spell_).cast();
     }
 
-    function _checkSystemValues(SystemValues storage values) internal {
+    function _checkSystemValues(SystemValues storage values) internal view {
         // dsr
         uint256 expectedDSRRate = rates.rates(values.pot_dsr);
         // make sure dsr is less than 100% APR
@@ -452,6 +656,23 @@ contract DssSpellTestBase is Config, DssTest {
             "TestError/pot-dsr-rates-table"
         );
 
+        // ssr
+        uint256 expectedSSRRate = rates.rates(values.susds_ssr);
+        // make sure dsr is less than 100% APR
+        // bc -l <<< 'scale=27; e( l(2.00)/(60 * 60 * 24 * 365) )'
+        // 1000000021979553151239153027
+        assertEq(susds.ssr(), expectedSSRRate, "TestError/susds-ssr-expected-value");
+        assertTrue(
+            susds.ssr() >= RAY && susds.ssr() < 1000000021979553151239153027,
+            "TestError/susds-ssr-range"
+        );
+        assertTrue(
+            _diffCalc(_expectedRate(values.susds_ssr), _yearlyYield(expectedSSRRate)) <= TOLERANCE,
+            "TestError/susds-ssr-rates-table"
+        );
+        // SSR should always be higher than or equal to DSR
+        assertGe(expectedSSRRate, expectedDSRRate, "TestError/ssr-lower-than-dsr");
+
         {
         // Line values in RAD
         assertTrue(
@@ -466,6 +687,10 @@ contract DssSpellTestBase is Config, DssTest {
 
         // wait
         assertEq(vow.wait(), values.vow_wait, "TestError/vow-wait");
+
+        // Ensure there is enough time for the governance to unwind SBE LP tokens instead of starting a Flop auction
+        assertGe(vow.wait(), pause.delay() * 2, "TestError/vow-wait-too-short");
+
         {
         // dump values in WAD
         uint256 normalizedDump = values.vow_dump * WAD;
@@ -519,44 +744,80 @@ contract DssSpellTestBase is Config, DssTest {
         {
             uint256 normalizedMin = values.esm_min * WAD;
             assertEq(esm.min(), normalizedMin, "TestError/esm-min");
-            assertTrue(esm.min() > WAD && esm.min() < 400 * THOUSAND * WAD, "TestError/esm-min-range");
+            assertTrue(esm.min() > WAD && esm.min() < 600 * THOUSAND * WAD, "TestError/esm-min-range");
         }
 
         // check Pause authority
-        assertEq(pause.authority(), values.pause_authority, "TestError/pause-authority");
+        assertEq(pause.authority(), addr.addr(values.pause_authority), "TestError/pause-authority");
 
         // check OsmMom authority
-        assertEq(osmMom.authority(), values.osm_mom_authority, "TestError/osmMom-authority");
+        assertEq(osmMom.authority(), addr.addr(values.osm_mom_authority), "TestError/osmMom-authority");
 
         // check ClipperMom authority
-        assertEq(clipMom.authority(), values.clipper_mom_authority, "TestError/clipperMom-authority");
+        assertEq(clipMom.authority(), addr.addr(values.clipper_mom_authority), "TestError/clipperMom-authority");
 
         // check D3MMom authority
-        assertEq(d3mMom.authority(), values.d3m_mom_authority, "TestError/d3mMom-authority");
+        assertEq(d3mMom.authority(), addr.addr(values.d3m_mom_authority), "TestError/d3mMom-authority");
 
         // check LineMom authority
-        assertEq(lineMom.authority(), values.line_mom_authority, "TestError/lineMom-authority");
+        assertEq(lineMom.authority(), addr.addr(values.line_mom_authority), "TestError/lineMom-authority");
 
         // check LitePsmMom authority
-        assertEq(litePsmMom.authority(), values.lite_psm_mom_authority, "TestError/linePsmMom-authority");
+        assertEq(litePsmMom.authority(), addr.addr(values.lite_psm_mom_authority), "TestError/linePsmMom-authority");
+
+        // check SplitterMom authority
+        assertEq(splitterMom.authority(), addr.addr(values.splitter_mom_authority), "TestError/splitterMom-authority");
 
         // check number of ilks
         assertEq(reg.count(), values.ilk_count, "TestError/ilks-count");
 
+        // split
+        {
+            // check split hop and sanity checks
+            assertEq(split.hop(), values.split_hop, "TestError/split-hop");
+            assertTrue(split.hop() > 0 && split.hop() < 86400, "TestError/split-hop-range"); // gt 0 && lt 1 day
+            // check burn value
+            uint256 normalizedTestBurn = values.split_burn * 10**14;
+            assertEq(split.burn(), normalizedTestBurn, "TestError/split-burn");
+            assertTrue(split.burn() >= 50 * WAD / 100 && split.burn() <= 1 * WAD, "TestError/split-burn-range"); // gte 50% and lte 100%
+            // check split.farm address to match config
+            address split_farm = addr.addr(values.split_farm);
+            assertEq(split.farm(), split_farm, "TestError/split-farm");
+            // check farm rewards distribution and duration to match splitter
+            if (split_farm != address(0)) {
+                address rewardsDistribution = StakingRewardsLike(split_farm).rewardsDistribution();
+                assertEq(rewardsDistribution, address(split), "TestError/farm-distribution");
+                uint256 rewardsDuration = StakingRewardsLike(split_farm).rewardsDuration();
+                assertEq(rewardsDuration, values.split_hop, "TestError/farm-duration-does-not-match-split-hop");
+            }
+        }
+
         // flap
-        // Check flap hop and sanity checks
-        assertEq(flap.hop(), values.flap_hop, "TestError/flap-hop");
-        assertTrue(flap.hop() > 0 && flap.hop() < 86400, "TestError/flap-hop-range"); // gt 0 && lt 1 day
-        // check want value
-        uint256 normalizedTestWant = values.flap_want * 10**14;
-        assertEq(flap.want(), normalizedTestWant, "TestError/flap-want");
-        assertTrue(flap.want() >= 90 * WAD / 100 && flap.want() <= 110 * WAD / 100, "TestError/flap-want-range"); // gte 90% and lte 110%
+        {
+            // check want value
+            uint256 normalizedTestWant = values.flap_want * 10**14;
+            assertEq(flap.want(), normalizedTestWant, "TestError/flap-want");
+            assertTrue(flap.want() >= 90 * WAD / 100 && flap.want() <= 110 * WAD / 100, "TestError/flap-want-range"); // gte 90% and lte 110%
+        }
+
+        // vest
+        {
+            assertEq(vestDai.cap(), values.vest_dai_cap, "TestError/vest-dai-cap");
+            assertEq(vestMkr.cap(), values.vest_mkr_cap, "TestError/vest-mkr-cap");
+            assertEq(vestUsds.cap(), values.vest_usds_cap, "TestError/vest-usds-cap");
+            assertEq(vestSky.cap(), values.vest_sky_cap, "TestError/vest-sky-cap");
+            assertEq(vestSkyMint.cap(), values.vest_sky_mint_cap, "TestError/vest-sky-mint-cap");
+        }
 
         assertEq(vat.wards(pauseProxy), uint256(1), "TestError/pause-proxy-deauthed-on-vat");
 
-        // transferrable vest
-        // check mkr allowance
-        _checkTransferrableVestMkrAllowance();
+        // transferrable vests
+        {
+            // check mkr allowance and balance
+            _checkTransferrableVestAllowanceAndBalance('mkr', address(mkr), vestMkr);
+            // check sky allowance and balance
+            _checkTransferrableVestAllowanceAndBalance('sky', address(sky), vestSky);
+        }
     }
 
     function _checkCollateralValues(SystemValues storage values) internal {
@@ -631,7 +892,7 @@ contract DssSpellTestBase is Config, DssTest {
             }
             if (values.collaterals[ilk].liqType == "clip") {
                 {
-                assertEq(reg.class(ilk), 1, _concat("TestError/reg-class-", ilk));
+                assertTrue(reg.class(ilk) == 1 || reg.class(ilk) == 7, _concat("TestError/reg-class-", ilk));
                 (bool ok, bytes memory val) = reg.xlip(ilk).call(abi.encodeWithSignature("dog()"));
                 assertTrue(ok, _concat("TestError/reg-xlip-dog-", ilk));
                 assertEq(abi.decode(val, (address)), address(dog), _concat("TestError/reg-xlip-dog-", ilk));
@@ -707,6 +968,22 @@ contract DssSpellTestBase is Config, DssTest {
                     uint256 _chost = (values.collaterals[ilk].dust * RAD) * normalizedTestChop / WAD;
                     assertEq(clip.chost(), _chost, _concat("TestError/calc-chost-incorrect-", ilk)); // Ensure clip.upchost() is called when dust changes
                 }
+                if (reg.class(ilk) == 7) {
+                    // check correct clipper type is used for the reg.class 7
+                    address engine = LockstakeClipperLike(address(clip)).engine();
+                    assertNotEq(engine, address(0), _concat("TestError/clip-engine-is-not-set-", ilk));
+                }
+                {
+                    // Ensure liquidation penalty is always bigger than combined keeper incentives
+                    (,,, uint256 line, uint256 dust) = vat.ilks(ilk);
+                    if (line != 0 && clip.stopped() == 0) {
+                        (, uint256 chop,,) = dog.ilks(ilk);
+                        uint256 tab = dust * chop / WAD;
+                        uint256 penaltyAmount = tab - dust;
+                        uint256 incentiveAmount = uint256(clip.tip()) + (tab * uint256(clip.chip()) / WAD);
+                        assertGe(penaltyAmount, incentiveAmount, _concat("TestError/too-low-dog-chop-", ilk));
+                    }
+                }
             }
             if (reg.class(ilk) < 3) {
                 {
@@ -726,7 +1003,7 @@ contract DssSpellTestBase is Config, DssTest {
         // TODO: have a discussion about how we want to manage the global Line going forward.
     }
 
-    function _getOSMPrice(address pip) internal returns (uint256) {
+    function _getOSMPrice(address pip) internal view returns (uint256) {
         // vm.load is to pull the price from the LP Oracle storage bypassing the whitelist
         uint256 price = uint256(vm.load(
             pip,
@@ -737,12 +1014,12 @@ contract DssSpellTestBase is Config, DssTest {
         // Give a 10^9 buffer for price appreciation over time
         // Note: This currently can't be hit due to the uint112, but we want to backstop
         //       once the PIP uint256 size is increased
-        assertTrue(price <= (10 ** 14) * WAD);
+        assertLe(price, (10 ** 14) * WAD, "TestError/invalid-osm-price");
 
         return price;
     }
 
-    function _getUNIV2LPPrice(address pip) internal returns (uint256) {
+    function _getUNIV2LPPrice(address pip) internal view returns (uint256) {
         // vm.load is to pull the price from the LP Oracle storage bypassing the whitelist
         uint256 price = uint256(vm.load(
             pip,
@@ -753,7 +1030,7 @@ contract DssSpellTestBase is Config, DssTest {
         // Give a 10^9 buffer for price appreciation over time
         // Note: This currently can't be hit due to the uint112, but we want to backstop
         //       once the PIP uint256 size is increased
-        assertTrue(price <= (10 ** 14) * WAD);
+        assertLe(price, (10 ** 14) * WAD, "TestError/invalid-univ2lp-price");
 
         return price;
     }
@@ -1050,6 +1327,317 @@ contract DssSpellTestBase is Config, DssTest {
         assertEq(lot, 0);
         assertEq(vat.dai(address(this)), 0);
         assertEq(vat.gem(ilk, address(this)), ilkAmt); // What was purchased + returned back as it is the owner of the vault
+        }
+    }
+
+    struct LockstakeIlkParams {
+        bytes32 ilk;
+        uint256 fee;
+        address pip;
+        address lsmkr;
+        address engine;
+        address clip;
+        address calc;
+        address farm;
+        address rToken;
+        address rDistr;
+        uint256 rDur;
+    }
+
+    function _checkLockstakeIlkIntegration(
+        LockstakeIlkParams memory p
+    ) internal {
+        LockstakeEngineLike engine = LockstakeEngineLike(p.engine);
+        StakingRewardsLike farm = StakingRewardsLike(p.farm);
+        // Check relevant contracts are correctly configured
+        {
+            assertEq(dog.vat(),                              address(vat),         "checkLockstakeIlkIntegration/invalid-dog-vat");
+            assertEq(dog.vow(),                              address(vow),         "checkLockstakeIlkIntegration/invalid-dog-vow");
+            (address clip,,,) = dog.ilks(p.ilk);
+            assertEq(clip,                                   p.clip,               "checkLockstakeIlkIntegration/invalid-dog-clip");
+            assertEq(engine.voteDelegateFactory(),           voteDelegateFactory,  "checkLockstakeIlkIntegration/invalid-engine-voteDelegateFactory");
+            assertEq(engine.usdsJoin(),                      address(usdsJoin),    "checkLockstakeIlkIntegration/invalid-engine-usdsJoin");
+            assertEq(engine.ilk(),                           p.ilk,                "checkLockstakeIlkIntegration/invalid-engine-ilk");
+            assertEq(engine.mkrSky(),                        address(mkrSky),      "checkLockstakeIlkIntegration/invalid-engine-mkrSky");
+            assertEq(engine.lsmkr(),                         p.lsmkr,              "checkLockstakeIlkIntegration/invalid-engine-lsmkr");
+            assertEq(engine.jug(),                           address(jug),         "checkLockstakeIlkIntegration/invalid-engine-jug");
+            assertEq(engine.fee(),                           p.fee * WAD / 100_00, "checkLockstakeIlkIntegration/invalid-fee");
+            assertNotEq(p.farm,                              address(0),           "checkLockstakeIlkIntegration/invalid-farm");
+            assertEq(engine.farms(p.farm),                   1,                    "checkLockstakeIlkIntegration/disabled-farm");
+            assertEq(farm.stakingToken(),                    p.lsmkr,              "checkLockstakeIlkIntegration/invalid-stakingToken");
+            assertEq(farm.rewardsToken(),                    p.rToken,             "checkLockstakeIlkIntegration/invalid-rewardsToken");
+            assertEq(farm.rewardsDistribution(),             p.rDistr,             "checkLockstakeIlkIntegration/invalid-rewardsDistribution");
+            assertEq(farm.rewardsDuration(),                 p.rDur,               "checkLockstakeIlkIntegration/invalid-rewardsDuration");
+            assertEq(ClipAbstract(p.clip).vat(),             address(vat),         "checkLockstakeIlkIntegration/invalid-clip-vat");
+            assertEq(ClipAbstract(p.clip).spotter(),         address(spotter),     "checkLockstakeIlkIntegration/invalid-clip-spotter");
+            assertEq(ClipAbstract(p.clip).dog(),             address(dog),         "checkLockstakeIlkIntegration/invalid-clip-dog");
+            assertEq(ClipAbstract(p.clip).ilk(),             p.ilk,                "checkLockstakeIlkIntegration/invalid-clip-ilk");
+            assertEq(ClipAbstract(p.clip).vow(),             address(vow),         "checkLockstakeIlkIntegration/invalid-clip-vow");
+            assertEq(ClipAbstract(p.clip).calc(),            p.calc,               "checkLockstakeIlkIntegration/invalid-clip-calc");
+            assertEq(LockstakeClipperLike(p.clip).engine(),  p.engine,             "checkLockstakeIlkIntegration/invalid-clip-engine");
+            assertEq(LockstakeClipperLike(p.clip).stopped(), 0,                    "checkLockstakeIlkIntegration/invalid-clip-stopped");
+            assertEq(osmMom.osms(p.ilk),                     p.pip,                "checkLockstakeIlkIntegration/invalid-osmMom-pip");
+        }
+        // Check ilk registry values
+        {
+            (
+                string memory name,
+                string memory symbol,
+                uint256 _class,
+                uint256 decimals,
+                address gem,
+                address pip,
+                address gemJoin,
+                address clip
+            ) = reg.info(p.ilk);
+            assertEq(name,     GemAbstract(p.lsmkr).name(),     "checkLockstakeIlkIntegration/incorrect-reg-name");
+            assertEq(symbol,   GemAbstract(p.lsmkr).symbol(),   "checkLockstakeIlkIntegration/incorrect-reg-symbol");
+            assertEq(_class,   7,                               "checkLockstakeIlkIntegration/incorrect-reg-class"); // REG_CLASS_JOINLESS
+            assertEq(decimals, GemAbstract(p.lsmkr).decimals(), "checkLockstakeIlkIntegration/incorrect-reg-decimals");
+            assertEq(gem,      address(mkr),                    "checkLockstakeIlkIntegration/incorrect-reg-gem");
+            assertEq(pip,      p.pip,                           "checkLockstakeIlkIntegration/incorrect-reg-pip");
+            assertEq(gemJoin,  address(0),                      "checkLockstakeIlkIntegration/incorrect-reg-gemJoin");
+            assertEq(clip,     p.clip,                          "checkLockstakeIlkIntegration/incorrect-reg-clip");
+        }
+        // Check required authorizations
+        {
+            assertEq(vat.wards(p.engine),                           1, "checkLockstakeIlkIntegration/missing-auth-vat-engine");
+            assertEq(vat.wards(p.clip),                             1, "checkLockstakeIlkIntegration/missing-auth-vat-clip");
+            assertEq(WardsAbstract(p.pip).wards(address(osmMom)),   1, "checkLockstakeIlkIntegration/missing-auth-pip-osmMom");
+            assertEq(dog.wards(p.clip),                             1, "checkLockstakeIlkIntegration/missing-auth-dog-clip");
+            assertEq(WardsAbstract(p.lsmkr).wards(p.engine),        1, "checkLockstakeIlkIntegration/missing-auth-lsmkr-engine");
+            assertEq(WardsAbstract(p.engine).wards(p.clip),         1, "checkLockstakeIlkIntegration/missing-auth-engine-clip");
+            assertEq(WardsAbstract(p.clip).wards(address(dog)),     1, "checkLockstakeIlkIntegration/missing-auth-clip-dog");
+            assertEq(WardsAbstract(p.clip).wards(address(end)),     1, "checkLockstakeIlkIntegration/missing-auth-clip-end");
+            assertEq(WardsAbstract(p.clip).wards(address(clipMom)), 1, "checkLockstakeIlkIntegration/missing-auth-clip-clipMom");
+        }
+        // Check required OSM buds
+        {
+            assertEq(OsmAbstract(p.pip).bud(address(spotter)), 1, "checkLockstakeIlkIntegration/missing-bud-spotter");
+            assertEq(OsmAbstract(p.pip).bud(p.clip),           1, "checkLockstakeIlkIntegration/missing-bud-clip");
+            assertEq(OsmAbstract(p.pip).bud(address(clipMom)), 1, "checkLockstakeIlkIntegration/missing-bud-clipMom");
+            assertEq(OsmAbstract(p.pip).bud(address(end)),     1, "checkLockstakeIlkIntegration/missing-bud-end");
+        }
+        // Prepare for liquidation
+        uint256 drawAmt;
+        uint256 lockAmt;
+        {
+            // Force max Hole
+            vm.store(address(dog), bytes32(uint256(4)), bytes32(type(uint256).max));
+            // Reset auction count
+            if (ClipAbstract(p.clip).kicks() > 0) {
+                stdstore.target(p.clip).sig("kicks()").checked_write(uint256(0));
+                assertEq(ClipAbstract(p.clip).kicks(), 0, "checkLockstakeIlkIntegration/unchanged-kicks");
+            }
+            // Poke OSM price
+            OsmAbstract(p.pip).poke();
+            vm.warp(block.timestamp + 1 hours);
+            OsmAbstract(p.pip).poke();
+            spotter.poke(p.ilk);
+            // Calculate lock and draw amounts
+            (,,,, uint256 dust) = vat.ilks(p.ilk);
+            drawAmt = dust / RAY;
+            lockAmt = drawAmt * WAD / _getOSMPrice(p.pip) * 10;
+            // Give tokens
+            _giveTokens(address(mkr), lockAmt);
+            _giveTokens(address(sky), lockAmt * afterSpell.sky_mkr_rate);
+        }
+        uint256 snapshot = vm.snapshot();
+        // Check locking and freeing Mkr
+        {
+            uint256 initialEngineBalance = mkr.balanceOf(p.engine);
+            engine.open(0);
+            assertEq(mkr.balanceOf(address(this)), lockAmt, "checkLockstakeIlkIntegration/LockAndFreeMkr/invalid-initial-balance");
+            mkr.approve(address(engine), lockAmt);
+            engine.lock(address(this), 0, lockAmt, 0);
+            assertEq(mkr.balanceOf(p.engine), initialEngineBalance + lockAmt, "checkLockstakeIlkIntegration/LockAndFreeMkr/invalid-locked-mkr-balance");
+            engine.free(address(this), 0, address(this), lockAmt);
+            uint256 exitFee = lockAmt * p.fee / 100_00;
+            assertEq(mkr.balanceOf(address(this)), lockAmt - exitFee, "checkLockstakeIlkIntegration/LockAndFreeMkr/invalid-unlocked-balance");
+            vm.revertTo(snapshot);
+        }
+        // Check locking and freeing Sky
+        {
+            uint256 initialEngineBalance = mkr.balanceOf(p.engine);
+            engine.open(0);
+            uint256 skyAmt = lockAmt * afterSpell.sky_mkr_rate;
+            assertEq(sky.balanceOf(address(this)), skyAmt, "checkLockstakeIlkIntegration/LockAndFreeSky/invalid-initial-balance");
+            sky.approve(address(engine), skyAmt);
+            engine.lockSky(address(this), 0, skyAmt, 0);
+            assertEq(mkr.balanceOf(p.engine), initialEngineBalance + lockAmt, "checkLockstakeIlkIntegration/LockAndFreeSky/invalid-locked-mkr-balance");
+            engine.freeSky(address(this), 0, address(this), skyAmt);
+            uint256 exitFee = lockAmt * p.fee / 100_00 * afterSpell.sky_mkr_rate;
+            assertGe(sky.balanceOf(address(this)), skyAmt - exitFee, "checkLockstakeIlkIntegration/LockAndFreeSky/invalid-unlocked-balance");
+            vm.revertTo(snapshot);
+        }
+        // Check drawing and wiping
+        {
+            uint256 initialEngineBalance = mkr.balanceOf(p.engine);
+            address urn = engine.open(0);
+            assertEq(mkr.balanceOf(address(this)), lockAmt, "checkLockstakeIlkIntegration/DrawAndWipe/invalid-initial-balance");
+            mkr.approve(address(engine), lockAmt);
+            engine.lock(address(this), 0, lockAmt, 0);
+            assertEq(mkr.balanceOf(p.engine), initialEngineBalance + lockAmt, "checkLockstakeIlkIntegration/DrawAndWipe/invalid-locked-mkr-balance");
+            engine.draw(address(this), 0, address(this), drawAmt);
+            assertEq(usds.balanceOf(address(this)), drawAmt, "checkLockstakeIlkIntegration/DrawAndWipe/invalid-usds-balance-after-draw");
+            skip(10 days);
+            jug.drip(p.ilk);
+            (, uint256 art) = vat.urns(p.ilk, urn);
+            (, uint256 rate,,,) = vat.ilks(p.ilk);
+            uint256 wipeAmt = _divup(art * rate, RAY);
+            assertGt(wipeAmt, drawAmt + 1 /* +1 to exclude rounding up */, "checkLockstakeIlkIntegration/DrawAndWipe/invalid-wipe-after-draw");
+            _giveTokens(address(usds), wipeAmt);
+            usds.approve(address(engine), wipeAmt);
+            engine.wipe(address(this), 0, wipeAmt);
+            assertEq(usds.balanceOf(address(this)), 0, "checkLockstakeIlkIntegration/DrawAndWipe/invalid-usds-balance-after-wipe");
+            vm.revertTo(snapshot);
+        }
+        // Check farming and getting a reward
+        {
+            // Lock with selected farm
+            address urn = engine.open(0);
+            mkr.approve(address(engine), lockAmt);
+            engine.selectFarm(address(this), 0, p.farm, 0);
+            engine.lock(address(this), 0, lockAmt, 0);
+            assertEq(GemAbstract(p.farm).balanceOf(urn), lockAmt, "checkLockstakeIlkIntegration/FarmAndGetReward/FarmAndGetReward/invalid-urn-farm-balance");
+            // Deposit rewards into farm and notify
+            uint256 rewardAmt = 1_000_000 * WAD;
+            address rewardsToken = farm.rewardsToken();
+            deal(rewardsToken, p.farm, rewardAmt, true);
+            vm.prank(farm.rewardsDistribution()); farm.notifyRewardAmount(rewardAmt);
+            // Claim rewards
+            address rewardsUser = address(this);
+            skip(farm.rewardsDuration());
+            uint256 resultAmt = engine.getReward(address(this), 0, p.farm, rewardsUser);
+            assertGt(resultAmt, 0, "checkLockstakeIlkIntegration/FarmAndGetReward/no-reward-amt");
+            assertGt(GemAbstract(rewardsToken).balanceOf(rewardsUser), 0, "checkLockstakeIlkIntegration/FarmAndGetReward/no-reward-balance");
+            vm.revertTo(snapshot);
+        }
+        // Check liquidations
+        _checkLockstakeTake(p, lockAmt, drawAmt, false, false); vm.revertTo(snapshot);
+        _checkLockstakeTake(p, lockAmt, drawAmt, false, true); vm.revertTo(snapshot);
+        _checkLockstakeTake(p, lockAmt, drawAmt, true, false); vm.revertTo(snapshot);
+        _checkLockstakeTake(p, lockAmt, drawAmt, true, true); vm.revertTo(snapshot);
+    }
+
+    struct Sale {
+        uint256 pos;  // Index in active array
+        uint256 tab;  // Dai to raise       [rad]
+        uint256 lot;  // collateral to sell [wad]
+        uint256 tot;  // static registry of total collateral to sell [wad]
+        address usr;  // Liquidated CDP
+        uint96  tic;  // Auction start time
+        uint256 top;  // Starting price     [ray]
+    }
+
+    struct LockstakeBalances {
+        uint256 chiefMkr;
+        uint256 engineMkr;
+        uint256 farmLsmkr;
+        uint256 vatGem;
+    }
+
+    function _checkLockstakeTake(
+        LockstakeIlkParams memory p,
+        uint256 lockAmt,
+        uint256 drawAmt,
+        bool withDelegate,
+        bool withStaking
+    ) internal {
+        // Open vault
+        LockstakeEngineLike engine = LockstakeEngineLike(p.engine);
+        vm.prank(address(123)); address voteDelegate = VoteDelegateFactoryLike(voteDelegateFactory).create();
+        assertNotEq(voteDelegate, address(0), "checkLockstakeTake/invalid-voteDelegate-address");
+        address urn = engine.open(0);
+        LockstakeBalances memory initialBalances = LockstakeBalances({
+            chiefMkr: mkr.balanceOf(address(chief)),
+            engineMkr: mkr.balanceOf(p.engine),
+            farmLsmkr: GemAbstract(p.lsmkr).balanceOf(p.farm),
+            vatGem: vat.gem(p.ilk, p.clip)
+        });
+
+        // Lock and draw
+        if (withDelegate) {
+            engine.selectVoteDelegate(address(this), 0, voteDelegate);
+        }
+        if (withStaking) {
+            engine.selectFarm(address(this), 0, address(p.farm), 0);
+        }
+        mkr.approve(address(engine), lockAmt);
+        engine.lock(address(this), 0, lockAmt, 0);
+        engine.draw(address(this), 0, address(this), drawAmt);
+        if (withDelegate) {
+            assertEq(engine.urnVoteDelegates(urn), voteDelegate, "checkLockstakeTake/AfterLockDraw/withDelegate/invalid-voteDelegate-urn");
+            assertEq(mkr.balanceOf(address(chief)) - initialBalances.chiefMkr, lockAmt, "checkLockstakeTake/AfterLockDraw/withDelegate/invalid-chief-mkr-balance");
+            assertEq(mkr.balanceOf(p.engine), initialBalances.engineMkr, "checkLockstakeTake/AfterLockDraw/withDelegate/invalid-engine-balance");
+        } else {
+            assertEq(engine.urnVoteDelegates(urn), address(0), "checkLockstakeTake/AfterLockDraw/withoutDelegate/invalid-voteDelegate-urn");
+            assertEq(mkr.balanceOf(address(chief)), initialBalances.chiefMkr, "checkLockstakeTake/AfterLockDraw/withoutDelegate/invalid-chief-mkr-balance");
+            assertEq(mkr.balanceOf(p.engine), initialBalances.engineMkr + lockAmt, "checkLockstakeTake/AfterLockDraw/withoutDelegate/invalid-engine-balance");
+        }
+        if (withStaking) {
+            assertEq(GemAbstract(p.lsmkr).balanceOf(urn), 0, "checkLockstakeTake/AfterLockDraw/withStaking/invalid-urn-lsgem-balance");
+            assertEq(GemAbstract(p.lsmkr).balanceOf(p.farm), initialBalances.farmLsmkr + lockAmt, "checkLockstakeTake/AfterLockDraw/withStaking/invalid-farm-lsgem-balance");
+            assertEq(GemAbstract(p.farm).balanceOf(urn), lockAmt, "checkLockstakeTake/AfterLockDraw/withStaking/invalid-urn-farm-balance");
+        } else {
+            assertEq(GemAbstract(p.lsmkr).balanceOf(urn), lockAmt, "checkLockstakeTake/AfterLockDraw/withoutStaking/invalid-urn-lsgem-balance");
+            assertEq(GemAbstract(p.lsmkr).balanceOf(p.farm), initialBalances.farmLsmkr, "checkLockstakeTake/AfterLockDraw/withoutStaking/invalid-farm-lsgem-balance");
+            assertEq(GemAbstract(p.farm).balanceOf(urn), 0, "checkLockstakeTake/AfterLockDraw/withoutStaking/invalid-urn-farm-balance");
+        }
+
+        // Force liquidation
+        if (withDelegate) {
+            vm.roll(block.number + 1); // Roll one block to allow freeing from chief
+        }
+        _setIlkMat(p.ilk, 100_000 * RAY);
+        spotter.poke(p.ilk);
+        assertEq(ClipAbstract(p.clip).kicks(), 0, "checkLockstakeTake/non-0-kicks");
+        assertEq(engine.urnAuctions(urn), 0, "checkLockstakeTake/non-0-actions");
+        uint256 id = dog.bark(p.ilk, urn, address(this));
+        assertEq(ClipAbstract(p.clip).kicks(), 1, "checkLockstakeTake/AfterBark/no-kicks");
+        assertEq(engine.urnAuctions(urn), 1, "checkLockstakeTake/AfterBark/no-actions");
+        Sale memory sale;
+        (sale.pos, sale.tab, sale.lot, sale.tot, sale.usr, sale.tic, sale.top) = LockstakeClipperLike(p.clip).sales(id);
+        assertEq(sale.pos, 0, "checkLockstakeTake/AfterBark/invalid-sale.pos");
+        assertGt(sale.tab, drawAmt * RAY, "checkLockstakeTake/AfterBark/invalid-sale.tab");
+        assertEq(sale.lot, lockAmt, "checkLockstakeTake/AfterBark/invalid-sale.lot");
+        assertEq(sale.tot, lockAmt, "checkLockstakeTake/AfterBark/invalid-sale.tot");
+        assertEq(sale.usr, urn, "checkLockstakeTake/AfterBark/invalid-sale.usr");
+        assertEq(sale.tic, block.timestamp, "checkLockstakeTake/AfterBark/invalid-sale.tic");
+        assertEq(sale.top, _getOSMPrice(p.pip) * ClipAbstract(p.clip).buf() / WAD, "checkLockstakeTake/AfterBark/invalid-sale.top");
+        assertEq(vat.gem(p.ilk, p.clip), initialBalances.vatGem + lockAmt, "checkLockstakeTake/AfterBark/invalid-vat-gem-clip");
+        assertEq(mkr.balanceOf(p.engine), initialBalances.engineMkr + lockAmt, "checkLockstakeTake/AfterBark/invalid-engine-mkr-balance");
+        assertEq(GemAbstract(p.lsmkr).balanceOf(urn), 0, "checkLockstakeTake/AfterBark/invalid-urn-lsgem-balance");
+        if (withDelegate) {
+            assertEq(mkr.balanceOf(address(chief)), initialBalances.chiefMkr, "checkLockstakeTake/AfterBark/withDelegate/invalid-chief-mkr-balance");
+        }
+        if (withStaking) {
+            assertEq(GemAbstract(p.lsmkr).balanceOf(p.farm), initialBalances.farmLsmkr, "checkLockstakeTake/AfterBark/withStaking/invalid-farm-lsgem-balance");
+            assertEq(GemAbstract(p.farm).balanceOf(urn), 0, "checkLockstakeTake/AfterBark/withStaking/invalid-urn-farm-balance");
+        }
+
+        // Take auction
+        address buyer = address(888);
+        vm.prank(pauseProxy); vat.suck(address(0), buyer, sale.tab);
+        vm.prank(buyer); vat.hope(p.clip);
+        assertEq(mkr.balanceOf(buyer), 0, "checkLockstakeTake/AfterBark/invalid-buyer-mkr-balance");
+        vm.prank(buyer); ClipAbstract(p.clip).take(id, lockAmt, type(uint256).max, buyer, "");
+        assertGt(mkr.balanceOf(buyer), 0, "checkLockstakeTake/AfterTake/invalid-buyer-mkr-balance");
+        (sale.pos, sale.tab, sale.lot, sale.tot, sale.usr, sale.tic, sale.top) = LockstakeClipperLike(p.clip).sales(id);
+        assertEq(sale.pos, 0, "checkLockstakeTake/AfterTake/invalid-sale.pos");
+        assertEq(sale.tab, 0, "checkLockstakeTake/AfterTake/invalid-sale.tab");
+        assertEq(sale.lot, 0, "checkLockstakeTake/AfterTake/invalid-sale.lot");
+        assertEq(sale.tot, 0, "checkLockstakeTake/AfterTake/invalid-sale.tot");
+        assertEq(sale.usr, address(0), "checkLockstakeTake/AfterTake/invalid-sale.usr");
+        assertEq(sale.tic, 0, "checkLockstakeTake/AfterTake/invalid-sale.tic");
+        assertEq(sale.top, 0, "checkLockstakeTake/AfterTake/invalid-sale.top");
+        assertEq(vat.gem(p.ilk, p.clip), initialBalances.vatGem, "checkLockstakeTake/AfterTake/invalid-vat.gem");
+        if (withDelegate) {
+            assertEq(mkr.balanceOf(address(chief)), initialBalances.chiefMkr, "checkLockstakeTake/AfterTake/withDelegate/invalid-chief-mkr-balance");
+        }
+        if (withStaking) {
+            assertEq(GemAbstract(p.lsmkr).balanceOf(p.farm), initialBalances.farmLsmkr, "checkLockstakeTake/AfterTake/withStaking/invalid-lsgem-farm-balance");
+            assertEq(GemAbstract(p.farm).balanceOf(urn), 0, "checkLockstakeTake/AfterTake/withStaking/invalid-farm-urn-balance");
         }
     }
 
@@ -1410,6 +1998,141 @@ contract DssSpellTestBase is Config, DssTest {
         assertEq(litePsm.tout(), type(uint256).max, _concat("checkLitePsmIlkIntegration/mom-halt-invalid-tout-", p.ilk));
     }
 
+    struct AllocatorIntegrationParams {
+        bytes32 ilk;
+        address pip;
+        address registry;
+        address roles;
+        address buffer;
+        address vault;
+        address allocatorProxy;
+    }
+
+    function _checkAllocatorIntegration(AllocatorIntegrationParams memory p) internal {
+        (, uint256 rate, uint256 spot,,) = vat.ilks(p.ilk);
+        assertEq(rate, RAY);
+        assertEq(spot, 10**18 * RAY * 10**9 / spotter.par());
+
+        (address pip,) = spotter.ilks(p.ilk);
+        assertEq(pip, p.pip);
+
+        assertEq(vat.gem(p.ilk, p.vault), 0);
+        (uint256 ink, uint256 art) = vat.urns(p.ilk, p.vault);
+        assertEq(ink, 1_000_000_000_000 * WAD);
+        assertEq(art, 0);
+
+        assertEq(AllocatorRegistryLike(p.registry).buffers(p.ilk), p.buffer);
+        assertEq(address(AllocatorVaultLike(p.vault).jug()), address(jug));
+
+        assertEq(usds.allowance(p.buffer, p.vault), type(uint256).max);
+
+        assertEq(AllocatorRolesLike(p.roles).ilkAdmins(p.ilk), p.allocatorProxy);
+
+        assertEq(AllocatorVaultLike(p.vault).wards(pauseProxy),  0);
+        assertEq(AllocatorVaultLike(p.vault).wards(p.allocatorProxy), 1);
+
+        assertEq(WardsAbstract(p.buffer).wards(pauseProxy),  0);
+        assertEq(WardsAbstract(p.buffer).wards(p.allocatorProxy), 1);
+
+        assertEq(reg.join(p.ilk),   address(0));
+        assertEq(reg.gem(p.ilk),    address(0));
+        assertEq(reg.dec(p.ilk),    0);
+        assertEq(reg.class(p.ilk),  5);
+        assertEq(reg.pip(p.ilk),    p.pip);
+        assertEq(reg.xlip(p.ilk),   address(0));
+        assertEq(reg.name(p.ilk),   _bytes32ToString(p.ilk));
+        assertEq(reg.symbol(p.ilk), _bytes32ToString(p.ilk));
+
+        // Draw & Wipe from Vault
+        vm.prank(address(p.allocatorProxy));
+        AllocatorVaultLike(p.vault).draw(1_000 * WAD);
+        assertEq(usds.balanceOf(p.buffer), 1_000 * WAD);
+
+        vm.warp(block.timestamp + 1);
+        jug.drip(p.ilk);
+
+        vm.prank(address(p.allocatorProxy));
+        AllocatorVaultLike(p.vault).wipe(1_000 * WAD);
+        assertEq(usds.balanceOf(p.buffer), 0);
+    }
+
+    struct BaseTokenBridgeParams {
+        address l2Bridge;
+        address l1Bridge;
+        address l1Escrow;
+        address[] tokens;
+        address[] l2Tokens;
+        uint256[] maxWithdrawals;
+    }
+
+    function _testBaseTokenBridgeIntegration(BaseTokenBridgeParams memory p) public {
+        for (uint i = 0; i < p.tokens.length; i ++) {
+            rootDomain.selectFork();
+
+            assertEq(GemAbstract(p.tokens[i]).allowance(p.l1Escrow, p.l1Bridge), type(uint256).max);
+            assertEq(L1TokenBridgeLike(p.l1Bridge).l1ToL2Token(p.tokens[i]), p.l2Tokens[i]);
+
+            // switch to Base domain and relay the spell from L1
+            // the `true` keeps us on Base rather than `rootDomain.selectFork()`
+            baseDomain.relayFromHost(true);
+
+            // test L2 side of initBridges
+            assertEq(L2TokenBridgeLike(p.l2Bridge).l1ToL2Token(p.tokens[i]), p.l2Tokens[i]);
+            assertEq(L2TokenBridgeLike(p.l2Bridge).maxWithdraws(p.l2Tokens[i]), p.maxWithdrawals[i]);
+
+            assertEq(WardsAbstract(p.l2Tokens[i]).wards(p.l2Bridge), 1);
+
+            // ------- Test Deposit -------
+
+            rootDomain.selectFork();
+
+            deal(p.tokens[i], address(this), 100 ether);
+            assertEq(GemAbstract(p.tokens[i]).balanceOf(address(this)), 100 ether);
+
+            GemAbstract(p.tokens[i]).approve(p.l1Bridge, 100 ether);
+            uint256 escrowBeforeBalance = GemAbstract(p.tokens[i]).balanceOf(p.l1Escrow);
+
+            L1TokenBridgeLike(p.l1Bridge).bridgeERC20To(
+                p.tokens[i],
+                p.l2Tokens[i],
+                address(0xb0b),
+                100 ether,
+                1_000_000,
+                ""
+            );
+
+            assertEq(GemAbstract(p.tokens[i]).balanceOf(address(this)), 0);
+            assertEq(GemAbstract(p.tokens[i]).balanceOf(p.l1Escrow), escrowBeforeBalance + 100 ether);
+
+            baseDomain.relayFromHost(true);
+
+            assertEq(GemAbstract(p.l2Tokens[i]).balanceOf(address(0xb0b)), 100 ether);
+
+            // ------- Test Withdrawal -------
+
+            vm.startPrank(address(0xb0b));
+
+            GemAbstract(p.l2Tokens[i]).approve(p.l2Bridge, 100 ether);
+
+            L2TokenBridgeLike(p.l2Bridge).bridgeERC20To(
+                p.l2Tokens[i],
+                p.tokens[i],
+                address(0xced),
+                100 ether,
+                1_000_000,
+                ""
+            );
+
+            vm.stopPrank();
+
+            assertEq(GemAbstract(p.l2Tokens[i]).balanceOf(address(0xb0b)), 0);
+
+            baseDomain.relayToHost(true);
+
+            assertEq(GemAbstract(p.tokens[i]).balanceOf(address(0xced)), 100 ether);
+        }
+    }
+
     function _to18ConversionFactor(LitePsmLike litePsm) internal view returns (uint256) {
         return litePsm.to18ConversionFactor();
     }
@@ -1471,7 +2194,7 @@ contract DssSpellTestBase is Config, DssTest {
         assertEq(join.tic(), 0);
     }
 
-    function _getSignatures(bytes32 signHash) internal returns (bytes memory signatures, address[] memory signers) {
+    function _getSignatures(bytes32 signHash) internal pure returns (bytes memory signatures, address[] memory signers) {
         // seeds chosen s.t. corresponding addresses are in ascending order
         uint8[30] memory seeds = [8,10,6,2,9,15,14,20,7,29,24,13,12,25,16,26,21,22,0,18,17,27,3,28,23,19,4,5,1,11];
         uint256 numSigners = seeds.length;
@@ -1610,41 +2333,169 @@ contract DssSpellTestBase is Config, DssTest {
         assertEq(cure.tell(), expectedTell);
     }
 
-    function _checkDaiVest(
-        uint256 _index,
-        address _wallet,
-        uint256 _start,
-        uint256 _cliff,
-        uint256 _end,
-        uint256 _days,
-        address _manager,
-        uint256 _restricted,
-        uint256 _reward,
-        uint256 _claimed
-    ) internal {
-        assertEq(vestDai.usr(_index), _wallet,            "usr");
-        assertEq(vestDai.bgn(_index), _start,             "bgn");
-        assertEq(vestDai.clf(_index), _cliff,             "clf");
-        assertEq(vestDai.fin(_index), _end,               "fin");
-        assertEq(vestDai.fin(_index), _start + _days - 1, "fin");
-        assertEq(vestDai.mgr(_index), _manager,           "mgr");
-        assertEq(vestDai.res(_index), _restricted,        "res");
-        assertEq(vestDai.tot(_index), _reward,            "tot");
-        assertEq(vestDai.rxd(_index), _claimed,           "rxd");
+    struct VestStream {
+        uint256 id;
+        address usr;
+        uint256 bgn;
+        uint256 clf;
+        uint256 fin;
+        uint256 tau;
+        address mgr;
+        uint256 res;
+        uint256 tot;
+        uint256 rxd;
     }
 
-    function _checkTransferrableVestMkrAllowance() internal {
+    function _checkVestDai(VestStream[] memory _ss) internal {
+        uint256 prevStreamCount = vestDai.ids();
+
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done(), "TestError/spell-not-done");
+
+        // Check that all streams added in this spell are tested
+        assertEq(vestDai.ids(), prevStreamCount + _ss.length, "testVestDai/not-all-streams-tested");
+
+        for (uint256 i = 0; i < _ss.length; i++) {
+            _checkVestStream("testVestDai", vestDai, address(dai), _ss[i]);
+        }
+    }
+
+    function _checkVestUsds(VestStream[] memory _ss) internal {
+        uint256 prevStreamCount = vestUsds.ids();
+
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done(), "TestError/spell-not-done");
+
+        // Check that all streams added in this spell are tested
+        assertEq(vestUsds.ids(), prevStreamCount + _ss.length, "testVestUsds/not-all-streams-tested");
+
+        for (uint256 i = 0; i < _ss.length; i++) {
+            _checkVestStream("testVestUsds", vestUsds, address(usds), _ss[i]);
+        }
+    }
+
+    function _checkVestMkr(VestStream[] memory _ss) internal {
+        uint256 prevStreamCount = vestMkr.ids();
+        uint256 prevAllowance = gov.allowance(pauseProxy, address(vestMkr));
+
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done(), "TestError/spell-not-done");
+
+        // Check allowance was increased according to the streams
+        uint256 sumTot = 0;
+        uint256 sumRxd = 0;
+        for (uint256 i = 0; i < _ss.length; i++) {
+            sumTot = sumTot + _ss[i].tot;
+            sumRxd = sumRxd + _ss[i].rxd;
+        }
+        assertEq(gov.allowance(pauseProxy, address(vestMkr)), prevAllowance + sumTot - sumRxd, "testVestMkr/invalid-allowance");
+
+        // Check that all streams added in this spell are tested
+        assertEq(vestMkr.ids(), prevStreamCount + _ss.length, "testVestMrk/not-all-streams-tested");
+
+        for (uint256 i = 0; i < _ss.length; i++) {
+            _checkVestStream("testVestMkr", vestMkr, address(gov), _ss[i]);
+        }
+    }
+
+    function _checkTransferrableVestAllowanceAndBalance(
+        string memory _errSuffix,
+        address token,
+        VestAbstract vest
+    ) internal view {
         uint256 vestableAmt;
 
-        for(uint256 i = 1; i <= vestMkr.ids(); i++) {
-            if (vestMkr.valid(i)) {
-                (,,,,,,uint128 tot, uint128 rxd) = vestMkr.awards(i);
+        for(uint256 i = 1; i <= vest.ids(); i++) {
+            if (vest.valid(i)) {
+                (,,,,,,uint128 tot, uint128 rxd) = vest.awards(i);
                 vestableAmt = vestableAmt + (tot - rxd);
             }
         }
 
-        uint256 allowance = gov.allowance(pauseProxy, address(vestMkr));
-        assertGe(allowance, vestableAmt, "TestError/insufficient-gov-transferrable-vest-mkr-allowance");
+        uint256 allowance = GemAbstract(token).allowance(pauseProxy, address(vest));
+        assertGe(allowance, vestableAmt, _concat(string("TestError/insufficient-transferrable-vest-allowance-"), _errSuffix));
+
+        uint256 balance = GemAbstract(token).balanceOf(pauseProxy);
+        assertGe(balance, vestableAmt, _concat(string("TestError/insufficient-transferrable-vest-balance-"), _errSuffix));
+    }
+
+    function _checkVestSKY(VestStream[] memory _ss) internal {
+        uint256 prevStreamCount = vestSky.ids();
+        uint256 prevAllowance = sky.allowance(pauseProxy, address(vestSky));
+
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done(), "TestError/spell-not-done");
+
+        // Check allowance was increased according to the streams
+        uint256 vestableAmt;
+        for (uint256 i = 0; i < _ss.length; i++) {
+            vestableAmt += _ss[i].tot - _ss[i].rxd;
+        }
+        assertEq(sky.allowance(pauseProxy, address(vestSky)), prevAllowance + vestableAmt, "testVestSky/invalid-allowance");
+
+        // Check that all streams added in this spell are tested
+        assertEq(vestSky.ids(), prevStreamCount + _ss.length, "testVestSky/not-all-streams-tested");
+
+        for (uint256 i = 0; i < _ss.length; i++) {
+            _checkVestStream("testVestSky", vestSky, address(sky), _ss[i]);
+        }
+    }
+
+    function _checkVestSkyMint(VestStream[] memory _ss) internal {
+        uint256 prevStreamCount = vestSkyMint.ids();
+
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done(), "TestError/spell-not-done");
+
+        // Check that all streams added in this spell are tested
+        assertEq(vestSkyMint.ids(), prevStreamCount + _ss.length, "testVestSkyMint/not-all-streams-tested");
+
+        for (uint256 i = 0; i < _ss.length; i++) {
+            _checkVestStream("testVestSkyMint", vestSkyMint, address(sky), _ss[i]);
+        }
+    }
+
+    function _checkVestStream(
+        string memory _errPrefix,
+        VestAbstract _vest,
+        address _token,
+        VestStream memory _s
+    ) internal {
+        assertEq(_vest.usr(_s.id), _s.usr,          _concat(_errPrefix, string("/usr")));
+        assertEq(_vest.bgn(_s.id), _s.bgn,          _concat(_errPrefix, string("/bgn")));
+        assertEq(_vest.clf(_s.id), _s.clf,          _concat(_errPrefix, string("/clf")));
+        assertEq(_vest.fin(_s.id), _s.fin,          _concat(_errPrefix, string("/fin")));
+        assertEq(_vest.fin(_s.id), _s.bgn + _s.tau, _concat(_errPrefix, string("/fin (bgn + tau)")));
+        assertEq(_vest.mgr(_s.id), _s.mgr,          _concat(_errPrefix, string("/mgr")));
+        assertEq(_vest.res(_s.id), _s.res,          _concat(_errPrefix, string("/res")));
+        assertEq(_vest.tot(_s.id), _s.tot,          _concat(_errPrefix, string("/tot")));
+        assertEq(_vest.rxd(_s.id), _s.rxd,          _concat(_errPrefix, string("/rxd")));
+
+        GemAbstract token = GemAbstract(_token);
+
+        {
+            uint256 before = vm.snapshot();
+
+            // Check each new stream is payable in the future
+            uint256 pbalance = token.balanceOf(_s.usr);
+            GodMode.setWard(address(_vest), address(this), 1);
+            _vest.unrestrict(_s.id);
+
+            vm.warp(_s.fin);
+            _vest.vest(_s.id);
+            assertEq(
+                token.balanceOf(_s.usr),
+                pbalance + _s.tot - _s.rxd,
+                _concat(_errPrefix, string("/invalid-received-amount"))
+            );
+
+            vm.revertTo(before);
+        }
     }
 
     function _getIlkMat(bytes32 _ilk) internal view returns (uint256 mat) {
@@ -1761,7 +2612,7 @@ contract DssSpellTestBase is Config, DssTest {
             if (ward > 0) {
                 emit log_named_address("   Deployer Address", deployer);
                 emit log_named_string("  Affected Contract", contractName);
-                fail("Error: Bad Auth");
+                revert("Error: Bad Auth");
             }
         }
     }
@@ -1935,7 +2786,7 @@ contract DssSpellTestBase is Config, DssTest {
     // This contract may not be deployable.
     // Consider enabling the optimizer (with a low "runs" value!),
     //   turning off revert strings, or using libraries.
-    function _testContractSize() internal {
+    function _testContractSize() internal view {
         uint256 _sizeSpell;
         address _spellAddr  = address(spell);
         assembly {
@@ -2050,11 +2901,11 @@ contract DssSpellTestBase is Config, DssTest {
         }
 
         uint256 metadataLength = _getBytecodeMetadataLength(expectedAction);
-        assertTrue(metadataLength <= expectedBytecodeSize, "TestError/metadata-length-gt-expected-bytecode-size");
+        assertLe(metadataLength, expectedBytecodeSize, "TestError/metadata-length-gt-expected-bytecode-size");
         expectedBytecodeSize -= metadataLength;
 
         metadataLength = _getBytecodeMetadataLength(actualAction);
-        assertTrue(metadataLength <= actualBytecodeSize, "TestError/metadata-length-gt-actual-bytecode-size");
+        assertLe(metadataLength, actualBytecodeSize, "TestError/metadata-length-gt-actual-bytecode-size");
         actualBytecodeSize -= metadataLength;
 
         assertEq(actualBytecodeSize, expectedBytecodeSize, "TestError/bytecode-size-mismatch");
@@ -2369,5 +3220,230 @@ contract DssSpellTestBase is Config, DssTest {
 
         // Dump all dai for next run
         vat.move(address(this), address(0x0), vat.dai(address(this)));
+    }
+
+    function _testSplitter() internal {
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done());
+
+        assertEq(vow.flapper(), address(split), "TestError/invalid-vow-flapper");
+        assertEq(split.flapper(), address(flap), "TestError/invalid-split-flapper");
+        assertEq(flap.gem(), address(sky), "TestError/invalid-flapper-gem");
+        assertEq(flap.pip(), addr.addr("FLAP_SKY_ORACLE"), "TestError/invalid-flapper-pip");
+        assertEq(flap.pair(), addr.addr("UNIV2USDSSKY"), "TestError/invalid-flapper-pair");
+
+        // Check splitter and flapper
+        {
+            // Leave surplus buffer ready to be flapped
+            vow.heal(vat.sin(address(vow)) - (vow.Sin() + vow.Ash()));
+            // Ensure flapping is possible
+            stdstore
+                .target(address(vat))
+                .sig("dai(address)")
+                .with_key(address(vow))
+                .checked_write(vat.sin(address(vow)) + vow.bump() + vow.hump());
+
+            GemAbstract pair = GemAbstract(addr.addr("UNIV2USDSSKY"));
+            FlapOracleLike pip = FlapOracleLike(flap.pip());
+
+            vm.prank(address(flap));
+            uint256 price = uint256(pip.read());
+
+            // Ensure there is enough liquidity
+            uint256 usdsWad = 150_000_000 * WAD;
+            GodMode.setBalance(address(usds), address(pair), usdsWad);
+            // Ensure price is within the tolerane (flap.want() + delta (1 p.p.))
+            uint256 skyWad = usdsWad * (flap.want() + 10**16) / price;
+            GodMode.setBalance(address(sky), address(pair), skyWad);
+
+            uint256 lotRad = vow.bump() * split.burn() / WAD;
+            uint256 payWad = (vow.bump() - lotRad) / RAY;
+
+            uint256 pskyBalancePauseProxy = sky.balanceOf(pauseProxy);
+            uint256 pdaiVow = vat.dai(address(vow));
+            uint256 preserveUsds = usds.balanceOf(address(pair));
+            uint256 preserveSky = sky.balanceOf(address(pair));
+
+            uint256 pbalanceUsdsFarm;
+            // Checking the farm balance is only relevant if split.burn() < 100%
+            if (split.burn() < 1 * WAD) {
+                pbalanceUsdsFarm = usds.balanceOf(split.farm());
+                assertFalse(split.farm() == address(0), "TestError/Splitter/missing-farm");
+            }
+
+            vow.flap();
+
+            assertGt(sky.balanceOf(pauseProxy),       pskyBalancePauseProxy,       "TestError/Flapper/unexpected-sky-pause-proxy-balance");
+            assertLt(sky.balanceOf(address(pair)),    preserveSky,                 "TestError/Flapper/unexpected-sky-pair-balance");
+            assertEq(usds.balanceOf(address(pair)),   preserveUsds + lotRad / RAY, "TestError/Flapper/invalid-usds-pair-balance-increase");
+            assertEq(pdaiVow - vat.dai(address(vow)), vow.bump(),                  "TestError/Flapper/invalid-vat-dai-vow-change");
+            assertEq(usds.balanceOf(address(flap)),   0,                           "TestError/Flapper/invalid-usds-balance");
+            assertEq(sky.balanceOf(address(flap)),    0,                           "TestError/Flapper/invalid-sky-balance");
+
+            if (split.burn() < 1 * WAD) {
+                assertEq(usds.balanceOf(split.farm()), pbalanceUsdsFarm + payWad, "TestError/Splitter/invalid-farm-balance");
+            }
+        }
+
+        // Check Mom can increase hop
+        {
+            // The check for the configured value is already done in `_checkSystemValues()`
+            assertLt(split.hop(), type(uint256).max, "TestError/SplitterMom/already-stopped");
+            vm.prank(chief.hat());
+            splitterMom.stop();
+            assertEq(split.hop(), type(uint256).max, "TestError/SplitterMom/not-stopped");
+        }
+    }
+
+    function _testSystemTokens() internal {
+        _vote(address(spell));
+        _scheduleWaitAndCast(address(spell));
+        assertTrue(spell.done());
+
+        // USDS
+        {
+            // USDS is upgradeable, so we need to ensure the implementation contract address is correct.
+            assertEq(_imp(address(usds)), addr.addr("USDS_IMP"), "TestError/USDS/invalid-usds-implementation");
+        }
+
+        // Converter: Dai <-> USDS
+        {
+            DaiUsdsLike daiUsds = DaiUsdsLike(addr.addr("DAI_USDS"));
+            address daiHolder = address(0x42);
+            deal(address(dai), daiHolder, 1_000 * WAD);
+            address usdsHolder = address(0x65);
+            deal(address(usds), usdsHolder, 1_000 * WAD);
+
+
+            // Dai -> USDS conversion
+            {
+                uint256 before = vm.snapshot();
+
+                uint256 pdaiBalance  = dai.balanceOf(daiHolder);
+                uint256 pusdsBalance = usds.balanceOf(usdsHolder);
+
+                vm.startPrank(daiHolder);
+                dai.approve(address(daiUsds),  type(uint256).max);
+                daiUsds.daiToUsds(usdsHolder,  pdaiBalance);
+                vm.stopPrank();
+
+                uint256 expectedUsdsBalance = pusdsBalance + pdaiBalance;
+
+                assertEq(dai.balanceOf(daiHolder),   0,                   "TestError/Dai/bad-dai-to-usds-conversion");
+                assertEq(usds.balanceOf(usdsHolder), expectedUsdsBalance, "TestError/Usds/bad-dai-to-usds-conversion");
+
+                vm.revertTo(before);
+            }
+
+            // USDS -> Dai conversion
+            {
+                uint256 before = vm.snapshot();
+
+                uint256 pusdsBalance = usds.balanceOf(usdsHolder);
+                uint256 pdaiBalance  = dai.balanceOf(daiHolder);
+
+                vm.startPrank(usdsHolder);
+                usds.approve(address(daiUsds), type(uint256).max);
+                daiUsds.usdsToDai(daiHolder,   pusdsBalance);
+                vm.stopPrank();
+
+                uint256 expectedDaiBalance = pdaiBalance + pusdsBalance;
+
+                assertEq(usds.balanceOf(usdsHolder), 0,                  "TestError/USDS/bad-usds-to-dai-conversion");
+                assertEq(dai.balanceOf(daiHolder),   expectedDaiBalance, "TestError/Dai/bad-usds-to-dai-conversion");
+
+                vm.revertTo(before);
+            }
+        }
+
+        // Converter: MKR <-> SKY
+        {
+            address mkrHolder = address(0x42);
+            deal(address(gov), mkrHolder, 1_000 * WAD);
+            address skyHolder = address(0x65);
+            deal(address(sky), skyHolder, 1_000 * WAD * afterSpell.sky_mkr_rate);
+
+
+            // MKR -> SKY conversion
+            {
+                uint256 before = vm.snapshot();
+
+                uint256 pmkrBalance = gov.balanceOf(mkrHolder);
+                uint256 pskyBalance = sky.balanceOf(skyHolder);
+
+                vm.startPrank(mkrHolder);
+                gov.approve(address(mkrSky), type(uint256).max);
+                mkrSky.mkrToSky(skyHolder,   pmkrBalance);
+                vm.stopPrank();
+
+                uint256 expectedSkyBalance = pskyBalance + (pmkrBalance * afterSpell.sky_mkr_rate);
+
+                assertEq(gov.balanceOf(mkrHolder), 0,                  "TestError/MKR/bad-mkr-to-sky-conversion");
+                assertEq(sky.balanceOf(skyHolder), expectedSkyBalance, "TestError/Sky/bad-mkr-to-sky-conversion");
+
+                vm.revertTo(before);
+            }
+
+            // SKY -> MKR conversion
+            {
+                uint256 before = vm.snapshot();
+
+                uint256 pskyBalance = sky.balanceOf(skyHolder);
+                uint256 pmkrBalance = gov.balanceOf(mkrHolder);
+
+                vm.startPrank(skyHolder);
+                sky.approve(address(mkrSky), type(uint256).max);
+                mkrSky.skyToMkr(mkrHolder,   pskyBalance);
+                vm.stopPrank();
+
+                uint256 expectedMkrBalance = pmkrBalance + (pskyBalance / afterSpell.sky_mkr_rate);
+
+                assertEq(sky.balanceOf(skyHolder), 0,                  "TestError/SKY/bad-sky-to-mkr-conversion");
+                assertEq(gov.balanceOf(mkrHolder), expectedMkrBalance, "TestError/Mkr/bad-sky-to-mkr-conversion");
+
+                vm.revertTo(before);
+            }
+        }
+
+        // sUSDS
+        {
+            // sUSDS is upgradeable, so we need to ensure the implementation contract address is correct.
+            assertEq(_imp(address(susds)), addr.addr("SUSDS_IMP"), "TestError/sUSDS/invalid-susds-implementation");
+            assertEq(susds.asset(),        address(usds),          "TestError/sUSDS/invalid-susds-asset");
+
+            // Ensure rate accumulator is up-to-date
+            susds.drip();
+            // Ensure the test contract has some tokens
+            _giveTokens(address(usds),    1_000 * WAD);
+            usds.approve(address(susds),  type(uint256).max);
+
+            uint256 pchi    = susds.chi();
+            uint256 passets = usds.balanceOf(address(this));
+
+            uint256 shares  = susds.deposit(passets, address(this));
+            assertLe(shares, passets, "TestError/sUSDS/invalid-shares");
+
+            uint256 interval = 365 days;
+            skip(interval);
+            susds.drip();
+
+            uint256 chi         = susds.chi();
+            uint256 expectedChi = _rpow(rates.rates(afterSpell.susds_ssr), interval, RAY) * pchi / RAY;
+            uint256 assets      = susds.redeem(shares, address(this), address(this));
+
+            // Allow a 0.01% rounding error
+            assertApproxEqRel(chi, expectedChi, 10**14,     "TestError/sUSDS/invalid-chi");
+            assertGt(assets, passets,                       "TestError/sUSDS/invalid-redeem-assets");
+            assertEq(assets, usds.balanceOf(address(this)), "TestError/sUSDS/invalid-balance-after-redeem");
+        }
+    }
+
+    // Obtained as `bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)`
+    bytes32 constant EIP1967_IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    /// @dev Returns the implementation of upgradeable contracts following EIP1697
+    function _imp(address _tgt) internal view returns (address) {
+        return address(uint160(uint256(vm.load(_tgt, EIP1967_IMPLEMENTATION_SLOT))));
     }
 }
