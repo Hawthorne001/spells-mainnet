@@ -65,8 +65,10 @@ def build_forge_cmd(
         str(delay),
     ]
 
-    if verifier == "etherscan" and etherscan_api_key:
-        cmd.extend(["--etherscan-api-key", etherscan_api_key])
+    if verifier == "etherscan":
+        cmd.append("--skip-is-verified-check")
+        if etherscan_api_key:
+            cmd.extend(["--etherscan-api-key", etherscan_api_key])
 
     return cmd
 
@@ -153,21 +155,7 @@ def verify_contract_with_verifiers(
     attempted = 0
     successes = 0
 
-    # Sourcify (works without API key); blockscout pulls from it
-    if chain_id == "1":
-        attempted += 1
-        if verify_once_on(
-            verifier="sourcify",
-            address=contract_address,
-            contract_name=contract_name,
-            retries=retries,
-            delay=delay,
-        ):
-            successes += 1
-    else:
-        print(f"Sourcify not configured for CHAIN_ID {chain_id}, skipping.")
-
-    # Etherscan (requires API key)
+    # Etherscan must run BEFORE Sourcify
     if chain_id == "1" and etherscan_api_key:
         attempted += 1
         if verify_once_on(
@@ -181,6 +169,20 @@ def verify_contract_with_verifiers(
             successes += 1
     elif chain_id == "1":
         print("ETHERSCAN_API_KEY not set; skipping Etherscan.")
+
+    # Sourcify (works without API key); blockscout pulls from it.
+    if chain_id == "1":
+        attempted += 1
+        if verify_once_on(
+            verifier="sourcify",
+            address=contract_address,
+            contract_name=contract_name,
+            retries=retries,
+            delay=delay,
+        ):
+            successes += 1
+    else:
+        print(f"Sourcify not configured for CHAIN_ID {chain_id}, skipping.")
 
     if successes == 0:
         return False
